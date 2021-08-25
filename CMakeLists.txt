@@ -24,14 +24,14 @@ find_package(catkin REQUIRED COMPONENTS
     # cv
     cv_bridge
     # pcl
+    pcl_ros
     pcl_conversions
     # msg generation
     message_generation
 )
 
 find_package(OpenMP REQUIRED)
-find_package(PCL REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.2 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(GTSAM REQUIRED QUIET)
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)

@@ -83,7 +83,7 @@ roslaunch lvi_sam run.launch
 
 3. Play existing bag files:
 ```
-rosbag play handheld.bag 
+rosbag play handheld.bag -r 0.5 
 ```
 
 ---

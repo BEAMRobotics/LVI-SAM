@@ -1,18 +1,18 @@
 # project name
-PROJECT_NAME: "lvi_sam_heron"
+PROJECT_NAME: "lvi_sam"
 
 lvi_sam:
 
   # Topics
-  pointCloudTopic: "lidar_h/velodyne_points"    # Point cloud data
+  pointCloudTopic: "/lidar_h/velodyne_points"   # Point cloud data
   imuTopic: "/imu/data"                         # IMU data
 
   # Heading
-  useImuHeadingInitialization: true          # if using GPS data, set to "true"
+  useImuHeadingInitialization: false          # if using GPS data, set to "true"
   
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
-  savePCDDirectory: "/Downloads/LOAM/"        # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
+  savePCDDirectory: "/robots/tmp/"            # in your home folder, starts and ends with "/". Warning: the code deletes "LOAM" folder then recreates it. See "mapOptimization" for implementation
 
   # Sensor Settings
   N_SCAN: 16                                  # number of lidar channel (i.e., 16, 32, 64, 128)
@@ -27,10 +27,10 @@ lvi_sam:
   imuGyrBiasN: 0.0000037
   imuGravity: 9.80511
   
-  # Extrinsics (lidar -> IMU) NEEDS ADJUSTMENT
-  extrinsicTrans: [0.0, 0.0, 0.0]
-  extrinsicRot: [1, 0, 0, 0, -1, 0, 0, 0, -1]
-  extrinsicRPY: [0, 1, 0, 1, 0, 0, 0, 0, -1]
+  # Extrinsics (lidar -> IMU)
+  extrinsicTrans: [0.0, 0.0, 0]
+  extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
+  extrinsicRPY: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
 
   # LOAM feature threshold
   edgeThreshold: 1.0

@@ -5,8 +5,8 @@ project_name: "lvi_sam"
 
 #common parameters
 imu_topic: "/imu/data"
-image_topic: "/F1/image_raw"
-point_cloud_topic: "lidar_h/velodyne_points"
+image_topic: "/F1/image_mono"
+point_cloud_topic: "lvi_sam/lidar/deskew/cloud_deskewed"
 
 # Lidar Params
 use_lidar: 1                     # whether use depth info from lidar or not
@@ -23,12 +23,11 @@ lidar_to_cam_rz: -0.04
 
 # camera model
 model_type: KANNALA_BRANDT
-camera_name: F1
+camera_name: camera
 
 # Mono camera config
 image_width: 2048
 image_height: 1536
-
 projection_parameters:
    k2: 0.0038663000000000000318
    k3: 0.024943365054747011073
@@ -38,13 +37,13 @@ projection_parameters:
    mv: 762.40844040460251563
    u0: 1017.926230276339993
    v0: 791.39848788627455178
-fisheye_mask: "/config/fisheye_mask_2048x1536.jpg" #NEEDS ADJUSTMENT
+fisheye_mask: "/config/fisheye_mask_2048x1536.jpg"
 
 #imu parameters       The more accurate parameters you provide, the worse performance
-acc_n: 0.00094         # accelerometer measurement noise standard deviation.
-gyr_n: 0.00057         # gyroscope measurement noise standard deviation.
-acc_w: 0.0000024        # accelerometer bias random work noise standard deviation.
-gyr_w: 0.0000037       # gyroscope bias random work noise standard deviation.
+acc_n: 0.02         # accelerometer measurement noise standard deviation.
+gyr_n: 0.01         # gyroscope measurement noise standard deviation.
+acc_w: 0.002        # accelerometer bias random work noise standard deviation.
+gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
 g_norm: 9.805       #
 
 # Extrinsic parameter between IMU and Camera.
@@ -56,16 +55,16 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ -0.99992671, -0.01210133,  0.00035198, 
-           0.00067539, -0.02673136,  0.99964243, 
-           -0.0120876,   0.9995694,   -0.32991883]
+   data: [ 0, 0, -1, 
+           -1, 0, 0, 
+           0, 1, 0]
 
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [-0.06561336, 0.00861226, -0.28157279]
+   data: [-0.04000, 0.00000, -0.02000]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking

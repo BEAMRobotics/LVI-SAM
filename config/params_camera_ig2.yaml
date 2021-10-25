@@ -5,7 +5,8 @@ project_name: "lvi_sam"
 
 #common parameters
 imu_topic: "/imu/data"
-image_topic: "/F1/image_mono"
+#image_topic: "/F1/image_mono"
+image_topic: "/F1/downscaled/image_mono"
 point_cloud_topic: "/lidar_h/velodyne_points"
 
 # Lidar Params
@@ -26,17 +27,27 @@ model_type: KANNALA_BRANDT
 camera_name: camera
 
 # Mono camera config
-image_width: 2048
-image_height: 1536
+image_width: 512
+image_height: 384
 projection_parameters:
    k2: 0.0038663000000000000318
    k3: 0.024943365054747011073
    k4: -0.020060572215327615586
    k5: 0.0046978196460776200025
-   mu: 763.15899999999999181
-   mv: 762.40844040460251563
-   u0: 1017.926230276339993
-   v0: 791.39848788627455178
+   mu: 190.7897
+   mv: 190.602
+   u0: 254.4815
+   v0: 197.849
+#projection_parameters:
+   #k2: 0.0038663000000000000318
+   #k3: 0.024943365054747011073
+   #k4: -0.020060572215327615586
+   #k5: 0.0046978196460776200025
+   #mu: 763.15899999999999181
+   #mv: 762.40844040460251563
+   #u0: 1017.926230276339993
+   #v0: 791.39848788627455178
+
 fisheye_mask: "/config/fisheye_mask_2048x1536.jpg"
 
 #imu parameters      The more accurate parameters you provide, the worse performance

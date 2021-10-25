@@ -21,16 +21,16 @@ lvi_sam:
   downsampleRate: 1                           # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1 
 
   # IMU Settings
-  imuAccNoise: 0.00094
-  imuGyrNoise: 0.00057
-  imuAccBiasN: 0.0000024
-  imuGyrBiasN: 0.0000037
+  imuAccNoise: 0.02387
+  imuGyrNoise: 0.00192
+  imuAccBiasN: 0.003066
+  imuGyrBiasN: 0.00155
   imuGravity: 9.80511
   
   # Extrinsics (lidar -> IMU)
-  extrinsicTrans: [0.0, 0.0, 0]
-  extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
-  extrinsicRPY: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
+  extrinsicTrans: [-0.035, -0.002, -0.011]
+  extrinsicRot: [-0.99928, -0.0123, -0.0358, -0.0116, 0.999, -0.0182, 0.036, -0.0177, -0.999]
+  extrinsicRPY: [-0.99928, -0.0123, -0.0358, -0.0116, 0.999, -0.0182, 0.036, -0.0177, -0.999]
 
   # LOAM feature threshold
   edgeThreshold: 1.0

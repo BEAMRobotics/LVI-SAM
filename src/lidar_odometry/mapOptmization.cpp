@@ -61,6 +61,7 @@ public:
 
     ros::Publisher pubLaserCloudSurround;
     ros::Publisher pubOdomAftMappedROS;
+    ros::Publisher pubCamOdomAftMappedROS;
     ros::Publisher pubKeyPoses;
     ros::Publisher pubPath;
 
@@ -153,6 +154,7 @@ public:
         pubKeyPoses           = nh.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/lidar/mapping/trajectory", 1);
         pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>(PROJECT_NAME + "/lidar/mapping/map_global", 1);
         pubOdomAftMappedROS   = nh.advertise<nav_msgs::Odometry>      (PROJECT_NAME + "/lidar/mapping/odometry", 1);
+        pubCamOdomAftMappedROS= nh.advertise<geometry_msgs::TransformStamped>(PROJECT_NAME + "/lidar/mapping/camera/transform", 1);
         pubPath               = nh.advertise<nav_msgs::Path>          (PROJECT_NAME + "/lidar/mapping/path", 1);
 
         subLaserCloudInfo     = nh.subscribe<lvi_sam::cloud_info>     (PROJECT_NAME + "/lidar/feature/cloud_info", 5, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
@@ -1607,6 +1609,44 @@ public:
                                                       tf::Vector3(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]));
         tf::StampedTransform trans_odom_to_lidar = tf::StampedTransform(t_odom_to_lidar, timeLaserInfoStamp, "odom", "lidar_link");
         br.sendTransform(trans_odom_to_lidar);
+
+        /**********************************************************
+         * This is a hardcoded addition to LVI sam so that the    
+         * camera frame is also published as a transform stamped
+         * for the ASA ros node
+        ***********************************************************/
+        Eigen::Quaterniond q_WORLD_LIDAR;
+        q_WORLD_LIDAR.w() = laserOdometryROS.pose.pose.orientation.w;
+        q_WORLD_LIDAR.x() = laserOdometryROS.pose.pose.orientation.x;
+        q_WORLD_LIDAR.y() = laserOdometryROS.pose.pose.orientation.y;
+        q_WORLD_LIDAR.z() = laserOdometryROS.pose.pose.orientation.z;
+        Eigen::Matrix4d T_WORLD_LIDAR = Eigen::Matrix4d::Identity();
+        T_WORLD_LIDAR.block(0, 0, 3, 3) = q_WORLD_LIDAR.toRotationMatrix();
+        T_WORLD_LIDAR(0, 3) = transformTobeMapped[3];
+        T_WORLD_LIDAR(1, 3) = transformTobeMapped[4];
+        T_WORLD_LIDAR(2, 3) = transformTobeMapped[5];
+        Eigen::Matrix4d T_LIDAR_CAMERA;
+        T_LIDAR_CAMERA << 0.00234801939310305235, -0.041018552478323425,	0.9991556260951103964, 0.15109426663300169275,
+                    -0.99985676122283209596, -0.016843618027140858005, 0.0016581823616219614574, -0.0025426513993679700107,
+                    0.016761379475396175449, -0.99901640170937048897, -0.041052226172802545867, -0.031521545194083263186,
+                    0.00000, 0.00000, 0.00000,	1.00000;
+        Eigen::Matrix4d T_WORLD_CAMERA = T_WORLD_LIDAR * T_LIDAR_CAMERA;
+        Eigen::Matrix3d R_WORLD_CAMERA = T_WORLD_CAMERA.block(0, 0, 3, 3);
+        Eigen::Quaterniond q = Eigen::Quaterniond(R_WORLD_CAMERA);
+        Eigen::Vector3d p = T_WORLD_CAMERA.block<3, 1>(0, 3).transpose();
+
+        geometry_msgs::TransformStamped cameraOdometryROS;
+        cameraOdometryROS.header.stamp = timeLaserInfoStamp;
+        cameraOdometryROS.header.frame_id = "odom";
+        cameraOdometryROS.child_frame_id = "camera_odom_mapping";
+        cameraOdometryROS.transform.translation.x = p[0];
+        cameraOdometryROS.transform.translation.y = p[1];
+        cameraOdometryROS.transform.translation.z = p[2];
+        cameraOdometryROS.transform.rotation.x = q.x();
+        cameraOdometryROS.transform.rotation.y = q.y();
+        cameraOdometryROS.transform.rotation.z = q.z();
+        cameraOdometryROS.transform.rotation.w = q.w();
+        pubCamOdomAftMappedROS.publish(cameraOdometryROS);
     }
 
     void updatePath(const PointTypePose& pose_in)

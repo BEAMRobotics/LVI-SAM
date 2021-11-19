@@ -5,8 +5,8 @@ project_name: "lvi_sam"
 
 #common parameters
 imu_topic: "/imu/data"
-image_topic: "/F1/image_mono"
-point_cloud_topic: "/lidar_h/velodyne_points"
+image_topic: "/F1/image_raw"
+point_cloud_topic: "lvi_sam/lidar/deskew/cloud_deskewed"
 
 # Lidar Params
 use_lidar: 1                     # whether use depth info from lidar or not
@@ -14,39 +14,39 @@ lidar_skip: 3                    # skip this amount of scans
 align_camera_lidar_estimation: 1 # align camera and lidar estimation for visualization
 
 # lidar to camera extrinsic
-lidar_to_cam_tx: -0.002368714880683
-lidar_to_cam_ty: -0.0253357
-lidar_to_cam_tz: -0.1522565
-lidar_to_cam_rx: 1.6118659
-lidar_to_cam_ry: 0.0167622
-lidar_to_cam_rz: 1.568448
+lidar_to_cam_tx: 0.05
+lidar_to_cam_ty: -0.07
+lidar_to_cam_tz: -0.07
+lidar_to_cam_rx: 0.0
+lidar_to_cam_ry: 0.0
+lidar_to_cam_rz: -0.04
 
 # camera model
-model_type: KANNALA_BRANDT
+model_type: PINHOLE
 camera_name: camera
 
-# Mono camera config
-image_width: 2048
-image_height: 1536
+# Mono camera config (F1)
+image_width: 720
+image_height: 540
+distortion_parameters:
+  k1: 0.000
+  k2: 0.000
+  p1: 0.000
+  p2: 0.000
 projection_parameters:
-   k2: 0.0038663000000000000318
-   k3: 0.024943365054747011073
-   k4: -0.020060572215327615586
-   k5: 0.0046978196460776200025
-   mu: 763.15899999999999181
-   mv: 762.40844040460251563
-   u0: 1017.926230276339993
-   v0: 791.39848788627455178
+  fx: 623.5365275900854
+  fy: 623.5365275900854
+  cx: 360.5
+  cy: 270.5
 
-#fisheye_mask: "/config/fisheye_mask_512x384.jpg"
-fisheye_mask: "/config/fisheye_mask_2048x1536.jpg"
+fisheye_mask: "/config/pinhole_mask_720x540.jpg"
 
-#imu parameters      The more accurate parameters you provide, the worse performance
-acc_n: 0.02387       # accelerometer measurement noise standard deviation.
-gyr_n: 0.00192       # gyroscope measurement noise standard deviation.
-acc_w: 0.03066       # accelerometer bias random work noise standard deviation.
-gyr_w: 0.00155       # gyroscope bias random work noise standard deviation.
-g_norm: 9.8050       #
+#imu parameters       The more accurate parameters you provide, the worse performance
+acc_n: 0.00094        # accelerometer measurement noise standard deviation.
+gyr_n: 0.00057        # gyroscope measurement noise standard deviation.
+acc_w: 0.0000024      # accelerometer bias random work noise standard deviation.
+gyr_w: 0.0000037      # gyroscope bias random work noise standard deviation.
+g_norm: 9.80511       #
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -57,18 +57,16 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0.0100911713149964834,0.00595533299116755,-0.99993134877873082137,
-          -0.99994819049714009048,0.0013960264693824028,-0.010083026906048929779,
-          0.0013358828476758878748,0.99998129238454121897,0.0059691119905887303179]
-
-
+   data: [ 0, 0, -1, 
+           -1, 0, 0, 
+           0, 1, 0]
 
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [-0.1863069653847129277, -0.002186878973101379161, 0.014295372680480471319]
+   data: [0.25, 0.0, 0.2]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking

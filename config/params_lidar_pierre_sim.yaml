@@ -6,6 +6,7 @@ lvi_sam:
   # Topics
   pointCloudTopic: "/hvlp/velodyne_points"  # Point cloud data
   imuTopic: "/imu/data"                     # IMU data
+  dvlTopic: "/pose_dvl"                     # DVL data
 
   # Heading
   useImuHeadingInitialization: false          # if using GPS data, set to "true"
@@ -31,6 +32,15 @@ lvi_sam:
   extrinsicTrans: [0.2, 0.0, 0.25]
   extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
   extrinsicRPY: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
+
+  # DVL Settings
+  dvlVelNoise: 0.001
+  dvlVelBiasN: 0.000
+
+  # Extrinsics (lidar -> DVL)
+  dvlExtrinsicTrans: [0.2, 0.0, 0.25]
+  dvlExtrinsicRot: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  dvlExtrinsicRPY: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
   # LOAM feature threshold
   edgeThreshold: 1.0

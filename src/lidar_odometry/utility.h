@@ -71,6 +71,7 @@ public:
 
     string pointCloudTopic;
     string imuTopic;
+    string dvlTopic;
     string odomTopic;
     string gpsTopic;
 
@@ -103,6 +104,17 @@ public:
     Eigen::Matrix3d extRPY;
     Eigen::Vector3d extTrans;
     Eigen::Quaterniond extQRPY;
+
+    // DVL 
+    float dvlVelNoise;
+    float dvlVelBiasN;
+    vector<double> dvlExtRotV;
+    vector<double> dvlExtRPYV;
+    vector<double> dvlExtTransV;
+    Eigen::Matrix3d dvlExtRot;
+    Eigen::Matrix3d dvlExtRPY;
+    Eigen::Vector3d dvlExtTrans;
+    Eigen::Quaterniond dvlExtQRPY;
 
     // LOAM
     float edgeThreshold;
@@ -149,6 +161,7 @@ public:
 
         nh.param<std::string>(PROJECT_NAME + "/pointCloudTopic", pointCloudTopic, "points_raw");
         nh.param<std::string>(PROJECT_NAME + "/imuTopic", imuTopic, "imu_correct");
+        nh.param<std::string>(PROJECT_NAME + "/dvlTopic", dvlTopic, "dvl_correct");
         nh.param<std::string>(PROJECT_NAME + "/odomTopic", odomTopic, "odometry/imu");
         nh.param<std::string>(PROJECT_NAME + "/gpsTopic", gpsTopic, "odometry/gps");
 
@@ -177,6 +190,16 @@ public:
         extRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRPYV.data(), 3, 3);
         extTrans = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extTransV.data(), 3, 1);
         extQRPY = Eigen::Quaterniond(extRPY);
+
+        nh.param<float>(PROJECT_NAME + "/dvlVelNoise", dvlVelNoise, 0.001);
+        nh.param<float>(PROJECT_NAME + "/dvlVelBiasN", dvlVelBiasN, 0.000);
+        nh.param<vector<double>>(PROJECT_NAME+ "/dvlExtrinsicRot", dvlExtRotV, vector<double>());
+        nh.param<vector<double>>(PROJECT_NAME+ "/dvlExtrinsicRPY", dvlExtRPYV, vector<double>());
+        nh.param<vector<double>>(PROJECT_NAME+ "/dvlExtrinsicTrans", dvlExtTransV, vector<double>());
+        dvlExtRot = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(dvlExtRotV.data(), 3, 3);
+        dvlExtRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(dvlExtRPYV.data(), 3, 3);
+        dvlExtTrans = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(dvlExtTransV.data(), 3, 1);
+        dvlExtQRPY = Eigen::Quaterniond(dvlExtRPY);
 
         nh.param<float>(PROJECT_NAME + "/edgeThreshold", edgeThreshold, 0.1);
         nh.param<float>(PROJECT_NAME + "/surfThreshold", surfThreshold, 0.1);
@@ -243,6 +266,19 @@ public:
 
         return imu_out;
     }
+
+    nav_msgs::Odometry dvlConverter(const nav_msgs::Odometry& dvl_in)
+    {
+        nav_msgs::Odometry dvl_out = dvl_in;
+        // rotate velocity
+        Eigen::Vector3d vel(dvl_in.twist.twist.linear.x, dvl_in.twist.twist.linear.y, dvl_in.twist.twist.linear.z);
+        vel = dvlExtRot * vel;
+        dvl_out.twist.twist.linear.x = vel.x();
+        dvl_out.twist.twist.linear.y = vel.y();
+        dvl_out.twist.twist.linear.z = vel.z();
+
+        return dvl_out;
+    }
 };
 
 template<typename T>
@@ -293,6 +329,15 @@ void imuRPY2rosRPY(sensor_msgs::Imu *thisImuMsg, T *rosRoll, T *rosPitch, T *ros
     *rosRoll = imuRoll;
     *rosPitch = imuPitch;
     *rosYaw = imuYaw;
+}
+
+
+template<typename T>
+void dvlVel2rosVel(nav_msgs::Odometry *thisDvlMsg, T *vel_x, T *vel_y, T *vel_z)
+{
+    *vel_x = thisDvlMsg->twist.twist.linear.x;
+    *vel_y = thisDvlMsg->twist.twist.linear.y;
+    *vel_z = thisDvlMsg->twist.twist.linear.z;
 }
 
 

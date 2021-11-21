@@ -9,7 +9,10 @@ lvi_sam:
   dvlTopic: "/pose_dvl"                     # DVL data
 
   # Heading
-  useImuHeadingInitialization: false          # if using GPS data, set to "true"
+  useImuHeadingInitialization: false        # if using GPS data, set to "true"
+
+  # DVL Factor
+  useDvlFactor: true                       # if using DVL factor, set to "true"
   
   # Export settings
   savePCD: true                              # https://github.com/TixiaoShan/LIO-SAM/issues/3

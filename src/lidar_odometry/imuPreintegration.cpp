@@ -25,6 +25,7 @@ class IMUPreintegration : public ParamServer
 public:
 
     ros::Subscriber subImu;
+    ros::Subscriber subDvl;
     ros::Subscriber subOdometry;
     ros::Publisher pubImuOdometry;
     ros::Publisher pubImuPath;
@@ -37,12 +38,12 @@ public:
 
     bool systemInitialized = false;
 
+    // IMU
     gtsam::noiseModel::Diagonal::shared_ptr priorPoseNoise;
     gtsam::noiseModel::Diagonal::shared_ptr priorVelNoise;
     gtsam::noiseModel::Diagonal::shared_ptr priorBiasNoise;
     gtsam::noiseModel::Diagonal::shared_ptr correctionNoise;
     gtsam::Vector noiseModelBetweenBias;
-
 
     gtsam::PreintegratedImuMeasurements *imuIntegratorOpt_;
     gtsam::PreintegratedImuMeasurements *imuIntegratorImu_;
@@ -62,6 +63,14 @@ public:
     double lastImuT_imu = -1;
     double lastImuT_opt = -1;
 
+    // DVL
+    std::deque<nav_msgs::Odometry> dvlQueOpt;
+
+    Eigen::Vector3d lastDvlV_opt;
+    Eigen::Vector3d thisDvlV_opt;
+    double lastDvlT_opt = -1;
+    double thisDvlT_opt = -1;
+
     gtsam::ISAM2 optimizer;
     gtsam::NonlinearFactorGraph graphFactors;
     gtsam::Values graphValues;
@@ -78,6 +87,12 @@ public:
     IMUPreintegration()
     {
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic, 2000, &IMUPreintegration::imuHandler, this, ros::TransportHints().tcpNoDelay());
+
+        if (useDvlFactor)
+        {
+          subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
+        }
+
         subOdometry = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/lidar/mapping/odometry", 5, &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> ("odometry/imu", 2000);
@@ -165,6 +180,24 @@ public:
                 else
                     break;
             }
+
+            // pop old DVL message
+            if (useDvlFactor)
+            {
+                while (!dvlQueOpt.empty())
+                {
+                    if (ROS_TIME(&dvlQueOpt.front()) < currentCorrectionTime - delta_t)
+                    {
+                        nav_msgs::Odometry *lastDvl = &dvlQueOpt.front();
+                        lastDvlT_opt = ROS_TIME(lastDvl);
+                        dvlVel2eigenVec(lastDvl,lastDvlV_opt);
+                        dvlQueOpt.pop_front();
+                    }
+                    else
+                        break;
+                }
+            }
+
             // initial pose
             prevPose_ = lidarPose.compose(lidar2Imu);
             gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
@@ -241,6 +274,40 @@ public:
                 
                 lastImuT_opt = imuTime;
                 imuQueOpt.pop_front();
+
+                if (useDvlFactor) 
+                {
+                    if (!dvlQueOpt.empty())
+                    {
+                      // get current dvl message
+                      nav_msgs::Odometry *thisDvl = &dvlQueOpt.front();
+                      thisDvlT_opt = ROS_TIME(thisDvl);
+                      dvlVel2eigenVec(thisDvl,thisDvlV_opt);
+                    } 
+                    else 
+                        ROS_ERROR("Cannot reconcile DVL queue. Lag insufficient.");
+
+                    if (imuTime > thisDvlT_opt) 
+                    {
+                      // set current measurement to last 
+                      lastDvlV_opt = thisDvlV_opt;
+                      lastDvlT_opt = thisDvlT_opt;
+
+                      // get next measurement
+                      if (!dvlQueOpt.empty()) {
+                        dvlQueOpt.pop_front();
+                        nav_msgs::Odometry *nextDvl = &dvlQueOpt.front();
+                        thisDvlT_opt = ROS_TIME(nextDvl);
+                        dvlVel2eigenVec(nextDvl,thisDvlV_opt);
+                      }
+                      else 
+                        ROS_ERROR("Cannot reset DVL queue. Lag insufficient.");
+                    }
+
+                    // TODO (Alex T)
+                    // linearly interpolate velocity measurement at time of imu measurement
+                    // integrate vel, omega, dt within a DVL integrator class (similar to SLAM tools)
+                }
             }
             else
                 break;
@@ -418,6 +485,12 @@ public:
         tf::poseMsgToTF(odometry.pose.pose, tCur);
         tf::StampedTransform odom_2_baselink = tf::StampedTransform(tCur, thisImu.header.stamp, "odom", "base_link");
         tfOdom2BaseLink.sendTransform(odom_2_baselink);
+    }
+
+    void dvlHandler(const nav_msgs::Odometry::ConstPtr& dvlMsg)
+    {
+        nav_msgs::Odometry thisDvl = dvlConverter(*dvlMsg);
+        dvlQueOpt.push_back(thisDvl);
     }
 };
 

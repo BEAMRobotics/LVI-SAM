@@ -77,6 +77,7 @@ public:
 
     // GPS Settings
     bool useImuHeadingInitialization;
+    bool useDvlFactor;
     bool useGpsElevation;
     float gpsCovThreshold;
     float poseCovThreshold;
@@ -166,6 +167,7 @@ public:
         nh.param<std::string>(PROJECT_NAME + "/gpsTopic", gpsTopic, "odometry/gps");
 
         nh.param<bool>(PROJECT_NAME + "/useImuHeadingInitialization", useImuHeadingInitialization, false);
+        nh.param<bool>(PROJECT_NAME + "/useDvlFactor", useDvlFactor, false);
         nh.param<bool>(PROJECT_NAME + "/useGpsElevation", useGpsElevation, false);
         nh.param<float>(PROJECT_NAME + "/gpsCovThreshold", gpsCovThreshold, 2.0);
         nh.param<float>(PROJECT_NAME + "/poseCovThreshold", poseCovThreshold, 25.0);
@@ -340,6 +342,12 @@ void dvlVel2rosVel(nav_msgs::Odometry *thisDvlMsg, T *vel_x, T *vel_y, T *vel_z)
     *vel_z = thisDvlMsg->twist.twist.linear.z;
 }
 
+void dvlVel2eigenVec(nav_msgs::Odometry *thisDvlMsg, Eigen::Vector3d vel)
+{
+    vel.x() = thisDvlMsg->twist.twist.linear.x;
+    vel.y() = thisDvlMsg->twist.twist.linear.y;
+    vel.z() = thisDvlMsg->twist.twist.linear.z;
+}
 
 float pointDistance(PointType p)
 {

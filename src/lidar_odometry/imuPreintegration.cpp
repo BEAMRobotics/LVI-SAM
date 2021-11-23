@@ -1,4 +1,5 @@
 #include "utility.h"
+#include "dvlPreintegrator.h"
 
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
@@ -64,6 +65,7 @@ public:
     double lastImuT_opt = -1;
 
     // DVL
+    DVLPreintegrator *dvlIntegratorOpt_;
     std::deque<nav_msgs::Odometry> dvlQueOpt;
 
     Eigen::Vector3d lastDvlV_opt;
@@ -91,6 +93,7 @@ public:
         if (useDvlFactor)
         {
           subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
+          dvlIntegratorOpt_ = new DVLPreintegrator(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
         }
 
         subOdometry = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/lidar/mapping/odometry", 5, &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
@@ -279,39 +282,45 @@ public:
                 {
                     if (!dvlQueOpt.empty())
                     {
-                      // get current dvl message
-                      nav_msgs::Odometry *thisDvl = &dvlQueOpt.front();
-                      thisDvlT_opt = ROS_TIME(thisDvl);
-                      dvlVel2eigenVec(thisDvl,thisDvlV_opt);
+                        // get current dvl message
+                        nav_msgs::Odometry *thisDvl = &dvlQueOpt.front();
+                        thisDvlT_opt = ROS_TIME(thisDvl);
+                        dvlVel2eigenVec(thisDvl,thisDvlV_opt);
                     } 
                     else 
                         ROS_ERROR("Cannot reconcile DVL queue. Lag insufficient.");
 
-                    if (imuTime > thisDvlT_opt) 
+                    if (imuTime > thisDvlT_opt)
                     {
-                      // set current measurement to last 
-                      lastDvlV_opt = thisDvlV_opt;
-                      lastDvlT_opt = thisDvlT_opt;
+                        // set current measurement to last
+                        lastDvlV_opt = thisDvlV_opt;
+                        lastDvlT_opt = thisDvlT_opt;
 
-                      // get next measurement
-                      if (!dvlQueOpt.empty()) {
-                        dvlQueOpt.pop_front();
-                        nav_msgs::Odometry *nextDvl = &dvlQueOpt.front();
-                        thisDvlT_opt = ROS_TIME(nextDvl);
-                        dvlVel2eigenVec(nextDvl,thisDvlV_opt);
-                      }
-                      else 
-                        ROS_ERROR("Cannot reset DVL queue. Lag insufficient.");
+                        // get next measurement
+                        if (!dvlQueOpt.empty()) {
+                            dvlQueOpt.pop_front();
+                            nav_msgs::Odometry *nextDvl = &dvlQueOpt.front();
+                            thisDvlT_opt = ROS_TIME(nextDvl);
+                            dvlVel2eigenVec(nextDvl,thisDvlV_opt);
+                        }
+                        else 
+                            ROS_ERROR("Cannot reset DVL queue. Lag insufficient.");
                     }
 
-                    // TODO (Alex T)
                     // linearly interpolate velocity measurement at time of imu measurement
-                    // integrate vel, omega, dt within a DVL integrator class (similar to SLAM tools)
+                    Eigen::Vector3d dvlVelVec = lastDvlV_opt - (lastDvlV_opt - thisDvlV_opt)/(lastDvlT_opt - thisDvlT_opt)*(lastDvlT_opt - imuTime);
+                    Eigen::Vector3d imuGyroVec(thisImu->angular_velocity.x, thisImu->angular_velocity.y, thisImu->angular_velocity.z);
+
+                    // integrate dt, omega, vel
+                    DVLData dvlData(imuTime, imuGyroVec, dvlVelVec);
+                    dvlIntegratorOpt_->integrateMeasurement(dt, dvlData);
                 }
             }
             else
                 break;
         }
+        imuIntegratorOpt_->print();
+        dvlIntegratorOpt_->print();
         // add imu factor to graph
         const gtsam::PreintegratedImuMeasurements& preint_imu = dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(*imuIntegratorOpt_);
         gtsam::ImuFactor imu_factor(X(key - 1), V(key - 1), X(key), V(key), B(key - 1), preint_imu);
@@ -341,6 +350,7 @@ public:
         prevBias_  = result.at<gtsam::imuBias::ConstantBias>(B(key));
         // Reset the optimization preintegration object.
         imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
+        if (useDvlFactor) {dvlIntegratorOpt_->reset();}
         // check optimization
         if (failureDetection(prevVel_, prevBias_))
         {

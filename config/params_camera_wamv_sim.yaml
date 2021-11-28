@@ -9,7 +9,7 @@ image_topic: "/wamv/sensors/cameras/front_left_camera/image_raw"
 point_cloud_topic: "lvi_sam/lidar/deskew/cloud_deskewed"
 
 # Lidar Params
-use_lidar: 1                     # whether use depth info from lidar or not
+use_lidar: 0                     # whether use depth info from lidar or not
 lidar_skip: 3                    # skip this amount of scans
 align_camera_lidar_estimation: 1 # align camera and lidar estimation for visualization
 
@@ -49,7 +49,7 @@ gyr_w: 0.0000037      # gyroscope bias random work noise standard deviation.
 g_norm: 9.80511       #
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
 #Rotation from camera frame to imu frame, imu^R_cam

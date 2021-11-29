@@ -4,9 +4,9 @@ PROJECT_NAME: "lvi_sam"
 lvi_sam:
 
   # Topics
-  pointCloudTopic: "/hvlp/velodyne_points"  # Point cloud data
-  imuTopic: "/imu/data"                     # IMU data
-  dvlTopic: "/pose_dvl"                     # DVL data
+  pointCloudTopic: "/wamv/sensors/lidars/lidar_wamv/points"  # Point cloud data
+  imuTopic: "/wamv/sensors/imu/imu/data"                     # IMU data
+  dvlTopic: "/wamv/sensors/position/dvl_odometry"            # DVL data
 
   # Heading
   useImuHeadingInitialization: false        # if using GPS data, set to "true"
@@ -32,7 +32,7 @@ lvi_sam:
   imuGravity: 9.80511
   
   # Extrinsics (lidar -> IMU)
-  extrinsicTrans: [0.2, 0.0, 0.25]
+  extrinsicTrans: [-0.025, 0.0, -0.040]
   extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
   extrinsicRPY: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
 
@@ -41,7 +41,7 @@ lvi_sam:
   dvlVelBiasN: 0.000
 
   # Extrinsics (lidar -> DVL)
-  dvlExtrinsicTrans: [0.2, 0.0, 0.25]
+  dvlExtrinsicTrans: [-0.700, 0.0, -1.800]
   dvlExtrinsicRot: [1, 0, 0, 0, 1, 0, 0, 0, 1]
   dvlExtrinsicRPY: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
@@ -57,8 +57,8 @@ lvi_sam:
   mappingSurfLeafSize: 0.4                      # default: 0.4
 
   # robot motion constraint (in case you are using a 2D robot)
-  z_tollerance: 0.02       # meters
-  rotation_tollerance: 0.1 # radians
+  z_tollerance: 0.1       # meters
+  rotation_tollerance: 0.2 # radians
 
   # CPU Params
   numberOfCores: 4                              # number of cores for mapping optimization

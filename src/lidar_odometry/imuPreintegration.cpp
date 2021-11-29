@@ -68,6 +68,7 @@ public:
     DVLPreintegrator *dvlIntegratorOpt_;
     std::deque<nav_msgs::Odometry> dvlQueOpt;
 
+    bool initDVLwindow = true;
     Eigen::Vector3d lastDvlV_opt;
     Eigen::Vector3d thisDvlV_opt;
     double lastDvlT_opt = -1;
@@ -278,38 +279,51 @@ public:
                 lastImuT_opt = imuTime;
                 imuQueOpt.pop_front();
 
-                if (useDvlFactor) 
+                // if using preintegrated DVL measurements
+                if (useDvlFactor)
                 {
+                    // get curent DVL message at front of queue
                     if (!dvlQueOpt.empty())
                     {
-                        // get current dvl message
                         nav_msgs::Odometry *thisDvl = &dvlQueOpt.front();
                         thisDvlT_opt = ROS_TIME(thisDvl);
                         dvlVel2eigenVec(thisDvl,thisDvlV_opt);
-                    } 
-                    else 
+                    }
+                    else
                         ROS_ERROR("Cannot reconcile DVL queue. Lag insufficient.");
 
+                    // initialize DVL window by assuming dvl message at first imu message
+                    if (initDVLwindow && imuTime < thisDvlT_opt)
+                    {
+                        lastDvlV_opt = thisDvlV_opt;
+                        lastDvlT_opt = imuTime;
+                        initDVLwindow = false;
+                    }
+
+                    // reset window if imu message falls outside
                     if (imuTime > thisDvlT_opt)
                     {
-                        // set current measurement to last
+                        // set current DVL measurement to last
                         lastDvlV_opt = thisDvlV_opt;
                         lastDvlT_opt = thisDvlT_opt;
 
-                        // get next measurement
-                        if (!dvlQueOpt.empty()) {
+                        while (imuTime > thisDvlT_opt && !dvlQueOpt.empty())
+                        {
                             dvlQueOpt.pop_front();
                             nav_msgs::Odometry *nextDvl = &dvlQueOpt.front();
                             thisDvlT_opt = ROS_TIME(nextDvl);
                             dvlVel2eigenVec(nextDvl,thisDvlV_opt);
                         }
-                        else 
-                            ROS_ERROR("Cannot reset DVL queue. Lag insufficient.");
                     }
 
-                    // linearly interpolate velocity measurement at time of imu measurement
+                    // interpolate velocity at time of imu message
                     Eigen::Vector3d dvlVelVec = lastDvlV_opt - (lastDvlV_opt - thisDvlV_opt)/(lastDvlT_opt - thisDvlT_opt)*(lastDvlT_opt - imuTime);
+
+                    // get imu angular velocity 
                     Eigen::Vector3d imuGyroVec(thisImu->angular_velocity.x, thisImu->angular_velocity.y, thisImu->angular_velocity.z);
+
+                    // Debug
+                    std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
 
                     // integrate dt, omega, vel
                     DVLData dvlData(imuTime, imuGyroVec, dvlVelVec);
@@ -319,8 +333,10 @@ public:
             else
                 break;
         }
+        // Debug
         imuIntegratorOpt_->print();
         dvlIntegratorOpt_->print();
+
         // add imu factor to graph
         const gtsam::PreintegratedImuMeasurements& preint_imu = dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(*imuIntegratorOpt_);
         gtsam::ImuFactor imu_factor(X(key - 1), V(key - 1), X(key), V(key), B(key - 1), preint_imu);

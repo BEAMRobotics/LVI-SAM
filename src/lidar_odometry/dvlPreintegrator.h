@@ -114,7 +114,6 @@ public:
         stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
         stream << "  dvlPreintMeasCov " << std::endl;
         stream << " [ " << delta.cov << " ]" << std::endl;
-
     }
 
     void reset()
@@ -153,6 +152,7 @@ public:
 
         Eigen::Matrix<double, 6, 6> white_noise_cov;
         double inv_dt = 1.0 / std::max(dt, 1.0e-7);
+        white_noise_cov.setZero();
         white_noise_cov.block<3, 3>(0, 0) = cov_w * inv_dt;
         white_noise_cov.block<3, 3>(3, 3) = cov_v * inv_dt;
 

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+
 #include <array>
 #include <bitset>
 #include <cmath>
@@ -170,5 +173,15 @@ public:
         delta.t = delta.t + dt;
         delta.p = delta.p + dt * v_mid;
         delta.q = (delta.q * q_full).normalized();
+    }
+
+    gtsam::Pose3 deltaPij()
+    {
+        gtsam::Pose3 deltaPij = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z()));;
+    }
+
+    gtsam::Vector CovPij()
+    {
+        gtsam::Vector6 CovPij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, delta.cov.diagonal()[3], delta.cov.diagonal()[4], delta.cov.diagonal()[5]).finished();
     }
 };

@@ -1,4 +1,5 @@
 #include "utility.h"
+#include "dvlPreintegrator.h"
 
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
@@ -25,6 +26,7 @@ class IMUPreintegration : public ParamServer
 public:
 
     ros::Subscriber subImu;
+    ros::Subscriber subDvl;
     ros::Subscriber subOdometry;
     ros::Publisher pubImuOdometry;
     ros::Publisher pubImuPath;
@@ -37,12 +39,12 @@ public:
 
     bool systemInitialized = false;
 
+    // IMU
     gtsam::noiseModel::Diagonal::shared_ptr priorPoseNoise;
     gtsam::noiseModel::Diagonal::shared_ptr priorVelNoise;
     gtsam::noiseModel::Diagonal::shared_ptr priorBiasNoise;
     gtsam::noiseModel::Diagonal::shared_ptr correctionNoise;
     gtsam::Vector noiseModelBetweenBias;
-
 
     gtsam::PreintegratedImuMeasurements *imuIntegratorOpt_;
     gtsam::PreintegratedImuMeasurements *imuIntegratorImu_;
@@ -62,6 +64,16 @@ public:
     double lastImuT_imu = -1;
     double lastImuT_opt = -1;
 
+    // DVL
+    DVLPreintegrator *dvlIntegratorOpt_;
+    std::deque<nav_msgs::Odometry> dvlQueOpt;
+
+    bool initDVLwindow = true;
+    Eigen::Vector3d lastDvlV_opt;
+    Eigen::Vector3d thisDvlV_opt;
+    double lastDvlT_opt = -1;
+    double thisDvlT_opt = -1;
+
     gtsam::ISAM2 optimizer;
     gtsam::NonlinearFactorGraph graphFactors;
     gtsam::Values graphValues;
@@ -78,6 +90,13 @@ public:
     IMUPreintegration()
     {
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic, 2000, &IMUPreintegration::imuHandler, this, ros::TransportHints().tcpNoDelay());
+
+        if (useDvlFactor)
+        {
+          subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
+          dvlIntegratorOpt_ = new DVLPreintegrator(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
+        }
+
         subOdometry = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/lidar/mapping/odometry", 5, &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> ("odometry/imu", 2000);
@@ -165,6 +184,24 @@ public:
                 else
                     break;
             }
+
+            // pop old DVL message
+            if (useDvlFactor)
+            {
+                while (!dvlQueOpt.empty())
+                {
+                    if (ROS_TIME(&dvlQueOpt.front()) < currentCorrectionTime - delta_t)
+                    {
+                        nav_msgs::Odometry *lastDvl = &dvlQueOpt.front();
+                        lastDvlT_opt = ROS_TIME(lastDvl);
+                        dvlVel2eigenVec(lastDvl,lastDvlV_opt);
+                        dvlQueOpt.pop_front();
+                    }
+                    else
+                        break;
+                }
+            }
+
             // initial pose
             prevPose_ = lidarPose.compose(lidar2Imu);
             gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
@@ -241,10 +278,65 @@ public:
                 
                 lastImuT_opt = imuTime;
                 imuQueOpt.pop_front();
+
+                // if using preintegrated DVL measurements
+                if (useDvlFactor)
+                {
+                    // get curent DVL message at front of queue
+                    if (!dvlQueOpt.empty())
+                    {
+                        nav_msgs::Odometry *thisDvl = &dvlQueOpt.front();
+                        thisDvlT_opt = ROS_TIME(thisDvl);
+                        dvlVel2eigenVec(thisDvl,thisDvlV_opt);
+                    }
+                    else
+                        ROS_ERROR("Cannot reconcile DVL queue. Lag insufficient.");
+
+                    // initialize DVL window by assuming dvl message at first imu message
+                    if (initDVLwindow && imuTime < thisDvlT_opt)
+                    {
+                        lastDvlV_opt = thisDvlV_opt;
+                        lastDvlT_opt = imuTime;
+                        initDVLwindow = false;
+                    }
+
+                    // reset window if imu message falls outside
+                    if (imuTime > thisDvlT_opt)
+                    {
+                        // set current DVL measurement to last
+                        lastDvlV_opt = thisDvlV_opt;
+                        lastDvlT_opt = thisDvlT_opt;
+
+                        while (imuTime > thisDvlT_opt && !dvlQueOpt.empty())
+                        {
+                            dvlQueOpt.pop_front();
+                            nav_msgs::Odometry *nextDvl = &dvlQueOpt.front();
+                            thisDvlT_opt = ROS_TIME(nextDvl);
+                            dvlVel2eigenVec(nextDvl,thisDvlV_opt);
+                        }
+                    }
+
+                    // interpolate velocity at time of imu message
+                    Eigen::Vector3d dvlVelVec = lastDvlV_opt - (lastDvlV_opt - thisDvlV_opt)/(lastDvlT_opt - thisDvlT_opt)*(lastDvlT_opt - imuTime);
+
+                    // get imu angular velocity 
+                    Eigen::Vector3d imuGyroVec(thisImu->angular_velocity.x, thisImu->angular_velocity.y, thisImu->angular_velocity.z);
+
+                    // Debug
+                    std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
+
+                    // integrate dt, omega, vel
+                    DVLData dvlData(imuTime, imuGyroVec, dvlVelVec);
+                    dvlIntegratorOpt_->integrateMeasurement(dt, dvlData);
+                }
             }
             else
                 break;
         }
+        // Debug
+        imuIntegratorOpt_->print();
+        dvlIntegratorOpt_->print();
+
         // add imu factor to graph
         const gtsam::PreintegratedImuMeasurements& preint_imu = dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(*imuIntegratorOpt_);
         gtsam::ImuFactor imu_factor(X(key - 1), V(key - 1), X(key), V(key), B(key - 1), preint_imu);
@@ -274,6 +366,7 @@ public:
         prevBias_  = result.at<gtsam::imuBias::ConstantBias>(B(key));
         // Reset the optimization preintegration object.
         imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
+        if (useDvlFactor) {dvlIntegratorOpt_->reset();}
         // check optimization
         if (failureDetection(prevVel_, prevBias_))
         {
@@ -418,6 +511,12 @@ public:
         tf::poseMsgToTF(odometry.pose.pose, tCur);
         tf::StampedTransform odom_2_baselink = tf::StampedTransform(tCur, thisImu.header.stamp, "odom", "base_link");
         tfOdom2BaseLink.sendTransform(odom_2_baselink);
+    }
+
+    void dvlHandler(const nav_msgs::Odometry::ConstPtr& dvlMsg)
+    {
+        nav_msgs::Odometry thisDvl = dvlConverter(*dvlMsg);
+        dvlQueOpt.push_back(thisDvl);
     }
 };
 

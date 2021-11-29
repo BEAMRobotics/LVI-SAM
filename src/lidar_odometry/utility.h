@@ -342,7 +342,7 @@ void dvlVel2rosVel(nav_msgs::Odometry *thisDvlMsg, T *vel_x, T *vel_y, T *vel_z)
     *vel_z = thisDvlMsg->twist.twist.linear.z;
 }
 
-void dvlVel2eigenVec(nav_msgs::Odometry *thisDvlMsg, Eigen::Vector3d vel)
+void dvlVel2eigenVec(nav_msgs::Odometry *thisDvlMsg, Eigen::Vector3d& vel)
 {
     vel.x() = thisDvlMsg->twist.twist.linear.x;
     vel.y() = thisDvlMsg->twist.twist.linear.y;

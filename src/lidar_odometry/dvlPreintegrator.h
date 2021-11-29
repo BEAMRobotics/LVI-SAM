@@ -108,11 +108,13 @@ public:
 
     void print(std::ostream &stream = std::cout) const
     {
-        stream << " dvlPreintMeasCov " << std::endl;
-        stream << " [ " << delta.cov << " ]" << std::endl;
+        stream << "Preintegrated DVL Measurements: " << std::endl;
         stream << "  deltaTij [ " << delta.t << " ]" << std::endl;
         stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << std::endl;
         stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
+        stream << "  dvlPreintMeasCov " << std::endl;
+        stream << " [ " << delta.cov << " ]" << std::endl;
+
     }
 
     void reset()

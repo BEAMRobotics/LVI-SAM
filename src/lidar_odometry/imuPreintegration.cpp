@@ -323,7 +323,7 @@ public:
                     Eigen::Vector3d imuGyroVec(thisImu->angular_velocity.x, thisImu->angular_velocity.y, thisImu->angular_velocity.z);
 
                     // Debug
-                    std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
+                    // std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
 
                     // integrate dt, omega, vel
                     DVLData dvlData(imuTime, imuGyroVec, dvlVelVec);
@@ -348,8 +348,8 @@ public:
         // add dvl factor to graph
         if (useDvlFactor)
         {
-            // dvlIntegratorOpt_->deltaPij();
-            gtsam::Vector CovPij = dvlIntegratorOpt_->CovPij();
+            // graphFactors.add(gtsam::BetweenFactor<gtsam::Pose3>(X(key - 1), X(key), dvlIntegratorOpt_->deltaPoseij(),
+            //                  gtsam::noiseModel::Diagonal::Sigmas(dvlIntegratorOpt_->CovPij())));
         }
 
         // add pose factor

@@ -265,7 +265,7 @@ public:
             ROS_ERROR("Invalid quaternion, please use a 9-axis IMU!");
             ros::shutdown();
         }
-
+        std::cout << "imu linear accel: " << "time " << imu_out.header.stamp << " " << acc.x() << " " << acc.y() << " " << acc.z() << std::endl;
         return imu_out;
     }
 
@@ -275,10 +275,10 @@ public:
         // rotate velocity
         Eigen::Vector3d vel(dvl_in.twist.twist.linear.x, dvl_in.twist.twist.linear.y, dvl_in.twist.twist.linear.z);
         vel = dvlExtRot * vel;
-        dvl_out.twist.twist.linear.x = vel.x();
-        dvl_out.twist.twist.linear.y = vel.y();
-        dvl_out.twist.twist.linear.z = vel.z();
-
+        dvl_out.twist.twist.linear.x = -vel.x();
+        dvl_out.twist.twist.linear.y = -vel.y();
+        dvl_out.twist.twist.linear.z = -vel.z();
+        std::cout << "dvl linear vel: " << "time " << dvl_in.header.stamp << " " << vel.x() << " " << vel.y() << " " << vel.z() << std::endl;
         return dvl_out;
     }
 };

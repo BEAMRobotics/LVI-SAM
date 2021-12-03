@@ -4,7 +4,7 @@ PROJECT_NAME: "lvi_sam"
 lvi_sam:
 
   # Topics
-  pointCloudTopic: "/lidar_h/velodyne_packets_unpacked"   # Point cloud data
+  pointCloudTopic: "/lidar_h/velodyne_points"   # Point cloud data
   imuTopic: "/imu/data"                         # IMU data
 
   # Heading

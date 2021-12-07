@@ -80,9 +80,9 @@ struct DVLData {
 class DVLPreintegrator
 {
 public:
-    DVLPreintegrator(double cov_w, double cov_v, double cov_bg, double cov_bv) :
-      cov_w(Eigen::Matrix3d::Identity()*cov_w), cov_v(Eigen::Matrix3d::Identity()*cov_v), 
-      cov_bg(Eigen::Matrix3d::Identity()*cov_bg), cov_bv(Eigen::Matrix3d::Identity()*cov_bv)
+    DVLPreintegrator(double noise_w, double noise_v, double noise_bg, double noise_bv) :
+      cov_w(Eigen::Matrix3d::Identity()*noise_w*noise_w), cov_v(Eigen::Matrix3d::Identity()*noise_v*noise_v), 
+      cov_bg(Eigen::Matrix3d::Identity()*noise_bg*noise_bg), cov_bv(Eigen::Matrix3d::Identity()*noise_bv*noise_bv)
     {
       reset();
     }
@@ -117,20 +117,23 @@ public:
         stream << "  deltaTij [ " << delta.t << " ]" << std::endl;
         stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << std::endl;
         stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
+        stream << "  gyrobias [ " << bg.transpose() << " ]'" <<std::endl;
         stream << "  dvlPreintMeasCov " << std::endl;
         stream << " [ " << delta.cov << " ]" << std::endl;
     }
 
-    void reset()
+    void reset(Eigen::Vector3d bg_new = Eigen::Vector3d::Zero(), Eigen::Vector3d bv_new = Eigen::Vector3d::Zero())
     {
-        delta.t = 0;
-        delta.q.setIdentity();
-        delta.p.setZero();
-        delta.cov.setZero();
+      bg = bg_new;
+      bv = bv_new;
+      delta.t = 0;
+      delta.q.setIdentity();
+      delta.p.setZero();
+      delta.cov.setZero();
 
-        jacobian.dp_dbg.setZero();
-        jacobian.dp_dbg.setZero();
-        jacobian.dp_dbv.setZero();
+      jacobian.dp_dbg.setZero();
+      jacobian.dp_dbg.setZero();
+      jacobian.dp_dbv.setZero();
     }
 
     void integrateMeasurement(double dt, const DVLData &data)
@@ -177,13 +180,22 @@ public:
         delta.q = (delta.q * q_full).normalized();
     }
 
-    gtsam::Pose3 deltaPoseij()
+    gtsam::Pose3 deltaPoseij(const gtsam::Rot3& R_previous)
     {
-        gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q), gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z()));
+        // rotate deltaPij into world frame
+        gtsam::Point3 deltaPij = R_previous.matrix()*gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z());
+        gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q.w(), delta.q.x(), delta.q.y(), delta.q.z()), deltaPij);
+
+        // Debug 
+        // std::cout << "deltaPij " << deltaPij << std::endl;
+
+        return deltaPoseij;
     }
 
-    gtsam::Vector6 CovPij()
+    gtsam::Vector6 Sigmasij()
     {
-        gtsam::Vector6 CovPij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, delta.cov.diagonal()[3], delta.cov.diagonal()[4], delta.cov.diagonal()[5]).finished();
+        //gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << sqrt(delta.cov.diagonal()[0]), sqrt(delta.cov.diagonal()[1]), sqrt(delta.cov.diagonal()[2]), sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        return Sigmasij;
     }
 };

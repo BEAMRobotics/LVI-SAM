@@ -267,7 +267,7 @@ public:
         }
 
         // DEBUG
-        std::cout << "imu_out: " << imu_out.header.stamp << " " << acc.x() << " " << acc.y() << " " << acc.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
+        // std::cout << "imu_out: " << imu_out.header.stamp << " " << acc.x() << " " << acc.y() << " " << acc.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
         return imu_out;
     }
 
@@ -289,7 +289,7 @@ public:
         dvl_out.twist.twist.angular.z = gyr.z();
 
         // DEBUG
-        std::cout << "dvl_out: " << dvl_out.header.stamp << " " << vel.x() << " " << vel.y() << " " << vel.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
+        // std::cout << "dvl_out: " << dvl_out.header.stamp << " " << vel.x() << " " << vel.y() << " " << vel.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
         return dvl_out;
     }
 };

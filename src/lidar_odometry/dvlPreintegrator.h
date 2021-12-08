@@ -72,7 +72,7 @@ struct DVLData {
   DVLData(double t, Eigen::Vector3d w, Eigen::Vector3d v)
     : t(t), w(w), v(v) {}
 
-  double t;    // timestamp
+  double t;          // timestamp
   Eigen::Vector3d w; // gyro measurement
   Eigen::Vector3d v; // velocity measurement
 };

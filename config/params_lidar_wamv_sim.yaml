@@ -32,16 +32,16 @@ lvi_sam:
   imuGravity: 9.80511
   
   # Extrinsics (lidar -> IMU)
-  extrinsicTrans: [-0.025, 0.0, -0.040]
-  extrinsicRot: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
-  extrinsicRPY: [-1, 0, 0, 0, 1, 0, 0, 0, -1]
+  extrinsicTrans: [0.0, 0.0, -1.800]
+  extrinsicRot: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  extrinsicRPY: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
   # DVL Settings
   dvlVelNoise: 0.001
   dvlVelBiasN: 0.000
 
   # Extrinsics (lidar -> DVL)
-  dvlExtrinsicTrans: [-0.700, 0.0, -1.800]
+  dvlExtrinsicTrans: [0.0, 0.0, -1.800]
   dvlExtrinsicRot: [1, 0, 0, 0, 1, 0, 0, 0, 1]
   dvlExtrinsicRPY: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 

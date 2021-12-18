@@ -115,6 +115,9 @@ target_link_libraries(${PROJECT_NAME}_visual_loop ${catkin_LIBRARIES} ${PCL_LIBR
 # IMU Preintegration
 add_executable(${PROJECT_NAME}_imuPreintegration src/lidar_odometry/imuPreintegration.cpp)
 target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
+# Ground Truth Path
+add_executable(${PROJECT_NAME}_groundTruthPath src/lidar_odometry/groundTruthPath.cpp)
+target_link_libraries(${PROJECT_NAME}_groundTruthPath ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
 # Range Image Projection
 add_executable(${PROJECT_NAME}_imageProjection src/lidar_odometry/imageProjection.cpp)
 add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)

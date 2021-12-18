@@ -57,6 +57,12 @@ public:
     gtsam::NavState prevState_;
     gtsam::imuBias::ConstantBias prevBias_;
 
+    // comparison metrics
+    gtsam::Point3 PositionComparisonDvl_;
+    gtsam::NavState propStateComparisonImu_;
+    double t_Comparison_ = 40.504; // hard-coded for environment 1
+    //double t_Comparison_ = 38.203; // hard-coded for environment 2
+
     gtsam::NavState prevStateOdom;
     gtsam::imuBias::ConstantBias prevBiasOdom;
 
@@ -359,14 +365,21 @@ public:
         graphFactors.add(gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>(B(key - 1), B(key), gtsam::imuBias::ConstantBias(),
                          gtsam::noiseModel::Diagonal::Sigmas(sqrt(imuIntegratorOpt_->deltaTij()) * noiseModelBetweenBias)));
 
+        // explicitly construct required objects for dvl factor
+        gtsam::Rot3 Ri = prevPose_.rotation();
+        gtsam::Pose3 deltaPoseij = dvlIntegratorOpt_->deltaPoseij(Ri);
+        gtsam::Vector6 Sigmasij = dvlIntegratorOpt_->Sigmasij();
+
+        // IMU vs DVL comparison
+        t_Comparison_ += imuIntegratorOpt_->deltaTij();
+        PositionComparisonDvl_ = PositionComparisonDvl_ + deltaPoseij.translation();
+        propStateComparisonImu_ = imuIntegratorOpt_->predict(propStateComparisonImu_, prevBias_);
+        // std::cout << "t " << t_Comparison_ << "propStateComparisonImu_: " << propStateComparisonImu_.position() << std::endl;
+        // std::cout << "t " << t_Comparison_ << "PositionComparisonDvl_ " << PositionComparisonDvl_ << std::endl;
+
         // add dvl factor to graph
         if (useDvlFactor)
         {
-            // explicitly construct required objects
-            gtsam::Rot3 Ri = prevPose_.rotation();
-            gtsam::Pose3 deltaPoseij = dvlIntegratorOpt_->deltaPoseij(Ri);
-            gtsam::Vector6 Sigmasij = dvlIntegratorOpt_->Sigmasij();
-
             // Debug
             // std::cout << "Xj - Xi " << deltaPoseij << std::endl;
             // std::cout << "Sigmasij: " << Sigmasij << std::endl;

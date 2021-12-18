@@ -194,8 +194,8 @@ public:
 
     gtsam::Vector6 Sigmasij()
     {
-        //gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
-        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << sqrt(delta.cov.diagonal()[0]), sqrt(delta.cov.diagonal()[1]), sqrt(delta.cov.diagonal()[2]), sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        //gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << sqrt(delta.cov.diagonal()[0]), sqrt(delta.cov.diagonal()[1]), sqrt(delta.cov.diagonal()[2]), sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
         return Sigmasij;
     }
 };

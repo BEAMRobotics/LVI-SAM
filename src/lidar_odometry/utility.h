@@ -281,15 +281,13 @@ public:
         dvl_out.twist.twist.linear.y = vel.y();
         dvl_out.twist.twist.linear.z = vel.z();
 
-        // DEBUG: rotate gyroscope (angular velocities are not reported by DVL's, though are captured by ground truth from which DVL measurements are simulated)
+        // rotate gyroscope (angular velocities are not reported by DVL's, though are captured by ground truth from which DVL measurements are simulated)
         Eigen::Vector3d gyr(dvl_in.twist.twist.angular.x, dvl_in.twist.twist.angular.y, dvl_in.twist.twist.angular.z);
         gyr = dvlExtRot * gyr;
         dvl_out.twist.twist.angular.x = gyr.x();
         dvl_out.twist.twist.angular.y = gyr.y();
         dvl_out.twist.twist.angular.z = gyr.z();
 
-        // DEBUG
-        // std::cout << "dvl_out: " << dvl_out.header.stamp << " " << vel.x() << " " << vel.y() << " " << vel.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
         return dvl_out;
     }
 };

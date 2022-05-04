@@ -58,12 +58,12 @@ public:
     gtsam::imuBias::ConstantBias prevBias_;
 
     // comparison metrics
-    gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.999976616, -0.000357543814, -0.00682882884, 7.85552373e-05); 
-    gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(0.0105184277, -0.000725783618, 0.0817260611); 
+    gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.999976616, -0.000357543814, -0.00682882884, 7.85552373e-05); // hard-coded for wamv sim environment 2
+    gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(0.0105184277, -0.000725783618, 0.0817260611); // hard-coded for wamv sim environment 2
 
     gtsam::NavState propStateComparisonImu_;
-    //double t_Comparison_ = 40.504; // hard-coded for environment 1
-    double t_Comparison_ = 38.203; // hard-coded for environment 2
+    //double t_Comparison_ = 40.504; // hard-coded for wamv sim environment 1
+    double t_Comparison_ = 38.203; // hard-coded for wamv sim environment 2
 
     gtsam::NavState prevStateOdom;
     gtsam::imuBias::ConstantBias prevBiasOdom;
@@ -376,16 +376,12 @@ public:
         PositionComparisonDvl_ = PositionComparisonDvl_ + deltaPoseij.translation();
         RotationComparisonDvl_ = RotationComparisonDvl_ * gtsam::Rot3(deltaPoseij.rotation());
         propStateComparisonImu_ = imuIntegratorOpt_->predict(propStateComparisonImu_, prevBias_);
-        std::cout << t_Comparison_ << propStateComparisonImu_.position() << " " << propStateComparisonImu_.pose().rotation().quaternion()[1] << " " << propStateComparisonImu_.pose().rotation().quaternion()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[3] << " " << propStateComparisonImu_.pose().rotation().quaternion()[0] << std::endl;
+        // std::cout << t_Comparison_ << propStateComparisonImu_.position() << " " << propStateComparisonImu_.pose().rotation().quaternion()[1] << " " << propStateComparisonImu_.pose().rotation().quaternion()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[3] << " " << propStateComparisonImu_.pose().rotation().quaternion()[0] << std::endl;
         // std::cout << t_Comparison_ << " " << PositionComparisonDvl_ << " " << RotationComparisonDvl_.quaternion()[1] << " " << RotationComparisonDvl_.quaternion()[2] << " " << RotationComparisonDvl_.quaternion()[3] << " " << RotationComparisonDvl_.quaternion()[0] << std::endl;
 
         // add dvl factor to graph
         if (useDvlFactor)
         {
-            // Debug
-            // std::cout << "Xj - Xi " << deltaPoseij << std::endl;
-            // std::cout << "Sigmasij: " << Sigmasij << std::endl;
-
             graphFactors.add(gtsam::BetweenFactor<gtsam::Pose3>(X(key - 1), X(key), deltaPoseij, 
                              gtsam::noiseModel::Diagonal::Sigmas(Sigmasij)));
         }
@@ -409,9 +405,6 @@ public:
         prevVel_   = result.at<gtsam::Vector3>(V(key));
         prevState_ = gtsam::NavState(prevPose_, prevVel_);
         prevBias_  = result.at<gtsam::imuBias::ConstantBias>(B(key));
-
-        // Debug
-        // std::cout << "prevPose_ " << prevPose_ << std::endl;
 
         // Reset the optimization preintegration object.
         imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);

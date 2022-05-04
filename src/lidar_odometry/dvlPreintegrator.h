@@ -113,14 +113,14 @@ public:
 
     void print(std::ostream &stream = std::cout) const
     {
-        stream << "Preintegrated DVL Measurements: " << std::endl;
-        stream << "  deltaTij [ " << delta.t << " ]" << std::endl;
-        stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << std::endl;
-        stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
-        stream << "  gyrobias [ " << bg.transpose() << " ]'" <<std::endl;
-        stream << "  velobias [ " << bv.transpose() << " ]'" <<std::endl;
-        stream << "  dvlPreintMeasCov " << std::endl;
-        stream << " [ " << delta.cov << " ]" << std::endl;
+        stream << "Preintegrated DVL Measurements: " << "\n";
+        stream << "  deltaTij [ " << delta.t << " ]" << "\n";
+        stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << "\n";
+        stream << "  deltaPij [ " << delta.p.transpose() << " ]'" << "\n";
+        stream << "  gyrobias [ " << bg.transpose() << " ]'" << "\n";
+        stream << "  velobias [ " << bv.transpose() << " ]'" << "\n";
+        stream << "  dvlPreintMeasCov " << "\n";
+        stream << " [ " << delta.cov << " ]" << "\n";
     }
 
     void reset(Eigen::Vector3d bg_new = Eigen::Vector3d::Zero(), Eigen::Vector3d bv_new = Eigen::Vector3d::Zero())
@@ -186,17 +186,12 @@ public:
         // rotate deltaPij into world frame
         gtsam::Point3 deltaPij = R_previous.matrix()*gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z());
         gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q.w(), delta.q.x(), delta.q.y(), delta.q.z()), deltaPij);
-
-        // Debug 
-        // std::cout << "deltaPij " << deltaPij << std::endl;
-
         return deltaPoseij;
     }
 
     gtsam::Vector6 Sigmasij()
     {
         gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
-        //gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << sqrt(delta.cov.diagonal()[0]), sqrt(delta.cov.diagonal()[1]), sqrt(delta.cov.diagonal()[2]), sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
         return Sigmasij;
     }
 };

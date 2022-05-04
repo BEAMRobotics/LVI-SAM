@@ -266,8 +266,6 @@ public:
             ros::shutdown();
         }
 
-        // DEBUG
-        // std::cout << "imu_out: " << imu_out.header.stamp << " " << acc.x() << " " << acc.y() << " " << acc.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
         return imu_out;
     }
 

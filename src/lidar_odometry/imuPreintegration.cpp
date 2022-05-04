@@ -57,6 +57,14 @@ public:
     gtsam::NavState prevState_;
     gtsam::imuBias::ConstantBias prevBias_;
 
+    // comparison metrics
+    gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.999976616, -0.000357543814, -0.00682882884, 7.85552373e-05); // hard-coded for wamv sim environment 2
+    gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(0.0105184277, -0.000725783618, 0.0817260611); // hard-coded for wamv sim environment 2
+
+    gtsam::NavState propStateComparisonImu_;
+    //double t_Comparison_ = 40.504; // hard-coded for wamv sim environment 1
+    double t_Comparison_ = 38.203; // hard-coded for wamv sim environment 2
+
     gtsam::NavState prevStateOdom;
     gtsam::imuBias::ConstantBias prevBiasOdom;
 
@@ -65,6 +73,8 @@ public:
     double lastImuT_opt = -1;
 
     // DVL
+
+    // TODO(AlexT) implement custom GTSAM class for dvl preint
     DVLPreintegrator *dvlIntegratorOpt_;
     std::deque<nav_msgs::Odometry> dvlQueOpt;
 
@@ -90,13 +100,6 @@ public:
     IMUPreintegration()
     {
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic, 2000, &IMUPreintegration::imuHandler, this, ros::TransportHints().tcpNoDelay());
-
-        if (useDvlFactor)
-        {
-          subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
-          dvlIntegratorOpt_ = new DVLPreintegrator(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
-        }
-
         subOdometry = nh.subscribe<nav_msgs::Odometry>(PROJECT_NAME + "/lidar/mapping/odometry", 5, &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> ("odometry/imu", 2000);
@@ -115,9 +118,15 @@ public:
         priorBiasNoise  = gtsam::noiseModel::Isotropic::Sigma(6, 1e-3); // 1e-2 ~ 1e-3 seems to be good
         correctionNoise = gtsam::noiseModel::Isotropic::Sigma(6, 1e-2); // meter
         noiseModelBetweenBias = (gtsam::Vector(6) << imuAccBiasN, imuAccBiasN, imuAccBiasN, imuGyrBiasN, imuGyrBiasN, imuGyrBiasN).finished();
-        
+
         imuIntegratorImu_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias); // setting up the IMU integration for IMU message thread
-        imuIntegratorOpt_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias); // setting up the IMU integration for optimization        
+        imuIntegratorOpt_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias); // setting up the IMU integration for optimization
+
+        if (useDvlFactor)
+        {
+          subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
+          dvlIntegratorOpt_ = new DVLPreintegrator(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
+        }
     }
 
     void resetOptimization()
@@ -149,6 +158,13 @@ public:
         if (imuQueOpt.empty())
             return;
 
+        // make sure we have dvl data to integrate
+        if (useDvlFactor)
+        {
+          if (dvlQueOpt.empty())
+            return;
+        }
+
         float p_x = odomMsg->pose.pose.position.x;
         float p_y = odomMsg->pose.pose.position.y;
         float p_z = odomMsg->pose.pose.position.z;
@@ -167,6 +183,8 @@ public:
             return;
         }
 
+        // TODO(AlexT)
+        // implement similar reset for dvl pre-integration
 
         // 0. initialize system
         if (systemInitialized == false)
@@ -225,7 +243,11 @@ public:
 
             imuIntegratorImu_->resetIntegrationAndSetBias(prevBias_);
             imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
-            
+            if (useDvlFactor) { dvlIntegratorOpt_->reset(prevBias_.gyroscope());}
+
+            // TODO(AlexT)
+            // LVI-SAM uses preintegrated IMU odometry to initialize off of. Should using DVL odom
+
             key = 1;
             systemInitialized = true;
             return;
@@ -275,7 +297,7 @@ public:
                 imuIntegratorOpt_->integrateMeasurement(
                         gtsam::Vector3(thisImu->linear_acceleration.x, thisImu->linear_acceleration.y, thisImu->linear_acceleration.z),
                         gtsam::Vector3(thisImu->angular_velocity.x,    thisImu->angular_velocity.y,    thisImu->angular_velocity.z), dt);
-                
+
                 lastImuT_opt = imuTime;
                 imuQueOpt.pop_front();
 
@@ -323,7 +345,7 @@ public:
                     Eigen::Vector3d imuGyroVec(thisImu->angular_velocity.x, thisImu->angular_velocity.y, thisImu->angular_velocity.z);
 
                     // Debug
-                    std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
+                    // std::cout << "lastDvlT_opt: " << lastDvlT_opt << " imuTime: " << imuTime << " thisDvlT_opt: " << thisDvlT_opt << std::endl;
 
                     // integrate dt, omega, vel
                     DVLData dvlData(imuTime, imuGyroVec, dvlVelVec);
@@ -334,8 +356,8 @@ public:
                 break;
         }
         // Debug
-        imuIntegratorOpt_->print();
-        dvlIntegratorOpt_->print();
+        // imuIntegratorOpt_->print();
+        // dvlIntegratorOpt_->print();
 
         // add imu factor to graph
         const gtsam::PreintegratedImuMeasurements& preint_imu = dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(*imuIntegratorOpt_);
@@ -344,6 +366,25 @@ public:
         // add imu bias between factor
         graphFactors.add(gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>(B(key - 1), B(key), gtsam::imuBias::ConstantBias(),
                          gtsam::noiseModel::Diagonal::Sigmas(sqrt(imuIntegratorOpt_->deltaTij()) * noiseModelBetweenBias)));
+
+        // explicitly construct required objects for dvl factor
+        gtsam::Pose3 deltaPoseij = dvlIntegratorOpt_->deltaPoseij(RotationComparisonDvl_);
+        gtsam::Vector6 Sigmasij = dvlIntegratorOpt_->Sigmasij();
+
+        // IMU vs DVL comparison
+        t_Comparison_ += imuIntegratorOpt_->deltaTij();
+        PositionComparisonDvl_ = PositionComparisonDvl_ + deltaPoseij.translation();
+        RotationComparisonDvl_ = RotationComparisonDvl_ * gtsam::Rot3(deltaPoseij.rotation());
+        propStateComparisonImu_ = imuIntegratorOpt_->predict(propStateComparisonImu_, prevBias_);
+        // std::cout << t_Comparison_ << propStateComparisonImu_.position() << " " << propStateComparisonImu_.pose().rotation().quaternion()[1] << " " << propStateComparisonImu_.pose().rotation().quaternion()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[3] << " " << propStateComparisonImu_.pose().rotation().quaternion()[0] << std::endl;
+        // std::cout << t_Comparison_ << " " << PositionComparisonDvl_ << " " << RotationComparisonDvl_.quaternion()[1] << " " << RotationComparisonDvl_.quaternion()[2] << " " << RotationComparisonDvl_.quaternion()[3] << " " << RotationComparisonDvl_.quaternion()[0] << std::endl;
+
+        // add dvl factor to graph
+        if (useDvlFactor)
+        {
+            graphFactors.add(gtsam::BetweenFactor<gtsam::Pose3>(X(key - 1), X(key), deltaPoseij, 
+                             gtsam::noiseModel::Diagonal::Sigmas(Sigmasij)));
+        }
         // add pose factor
         gtsam::Pose3 curPose = lidarPose.compose(lidar2Imu);
         gtsam::PriorFactor<gtsam::Pose3> pose_factor(X(key), curPose, correctionNoise);
@@ -364,9 +405,10 @@ public:
         prevVel_   = result.at<gtsam::Vector3>(V(key));
         prevState_ = gtsam::NavState(prevPose_, prevVel_);
         prevBias_  = result.at<gtsam::imuBias::ConstantBias>(B(key));
+
         // Reset the optimization preintegration object.
         imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
-        if (useDvlFactor) {dvlIntegratorOpt_->reset();}
+        if (useDvlFactor) { dvlIntegratorOpt_->reset(prevBias_.gyroscope());}
         // check optimization
         if (failureDetection(prevVel_, prevBias_))
         {
@@ -374,8 +416,7 @@ public:
             return;
         }
 
-
-        // 2. after optiization, re-propagate imu odometry preintegration
+        // 2. after optimization, re-propagate imu odometry preintegration
         prevStateOdom = prevState_;
         prevBiasOdom  = prevBias_;
         // first pop imu message older than current correction data
@@ -456,7 +497,7 @@ public:
         odometry.header.frame_id = "odom";
         odometry.child_frame_id = "odom_imu";
 
-        // transform imu pose to ldiar
+        // transform imu pose to lidar
         gtsam::Pose3 imuPose = gtsam::Pose3(currentState.quaternion(), currentState.position());
         gtsam::Pose3 lidarPose = imuPose.compose(imu2Lidar);
 

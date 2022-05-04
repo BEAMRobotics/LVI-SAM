@@ -1,5 +1,10 @@
 #pragma once
 
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Point3.h>
+
 #include <array>
 #include <bitset>
 #include <cmath>
@@ -67,7 +72,7 @@ struct DVLData {
   DVLData(double t, Eigen::Vector3d w, Eigen::Vector3d v)
     : t(t), w(w), v(v) {}
 
-  double t;    // timestamp
+  double t;          // timestamp
   Eigen::Vector3d w; // gyro measurement
   Eigen::Vector3d v; // velocity measurement
 };
@@ -75,9 +80,9 @@ struct DVLData {
 class DVLPreintegrator
 {
 public:
-    DVLPreintegrator(double cov_w, double cov_v, double cov_bg, double cov_bv) :
-      cov_w(Eigen::Matrix3d::Identity()*cov_w), cov_v(Eigen::Matrix3d::Identity()*cov_v), 
-      cov_bg(Eigen::Matrix3d::Identity()*cov_bg), cov_bv(Eigen::Matrix3d::Identity()*cov_bv)
+    DVLPreintegrator(double noise_w, double noise_v, double noise_bg, double noise_bv) :
+      cov_w(Eigen::Matrix3d::Identity()*noise_w*noise_w), cov_v(Eigen::Matrix3d::Identity()*noise_v*noise_v), 
+      cov_bg(Eigen::Matrix3d::Identity()*noise_bg*noise_bg), cov_bv(Eigen::Matrix3d::Identity()*noise_bv*noise_bv)
     {
       reset();
     }
@@ -108,24 +113,28 @@ public:
 
     void print(std::ostream &stream = std::cout) const
     {
-        stream << "Preintegrated DVL Measurements: " << std::endl;
-        stream << "  deltaTij [ " << delta.t << " ]" << std::endl;
-        stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << std::endl;
-        stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
-        stream << "  dvlPreintMeasCov " << std::endl;
-        stream << " [ " << delta.cov << " ]" << std::endl;
+        stream << "Preintegrated DVL Measurements: " << "\n";
+        stream << "  deltaTij [ " << delta.t << " ]" << "\n";
+        stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << "\n";
+        stream << "  deltaPij [ " << delta.p.transpose() << " ]'" << "\n";
+        stream << "  gyrobias [ " << bg.transpose() << " ]'" << "\n";
+        stream << "  velobias [ " << bv.transpose() << " ]'" << "\n";
+        stream << "  dvlPreintMeasCov " << "\n";
+        stream << " [ " << delta.cov << " ]" << "\n";
     }
 
-    void reset()
+    void reset(Eigen::Vector3d bg_new = Eigen::Vector3d::Zero(), Eigen::Vector3d bv_new = Eigen::Vector3d::Zero())
     {
-        delta.t = 0;
-        delta.q.setIdentity();
-        delta.p.setZero();
-        delta.cov.setZero();
+      bg = bg_new;
+      bv = bv_new;
+      delta.t = 0;
+      delta.q.setIdentity();
+      delta.p.setZero();
+      delta.cov.setZero();
 
-        jacobian.dp_dbg.setZero();
-        jacobian.dp_dbg.setZero();
-        jacobian.dp_dbv.setZero();
+      jacobian.dp_dbg.setZero();
+      jacobian.dp_dbg.setZero();
+      jacobian.dp_dbv.setZero();
     }
 
     void integrateMeasurement(double dt, const DVLData &data)
@@ -170,5 +179,19 @@ public:
         delta.t = delta.t + dt;
         delta.p = delta.p + dt * v_mid;
         delta.q = (delta.q * q_full).normalized();
+    }
+
+    gtsam::Pose3 deltaPoseij(const gtsam::Rot3& R_previous)
+    {
+        // rotate deltaPij into world frame
+        gtsam::Point3 deltaPij = R_previous.matrix()*gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z());
+        gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q.w(), delta.q.x(), delta.q.y(), delta.q.z()), deltaPij);
+        return deltaPoseij;
+    }
+
+    gtsam::Vector6 Sigmasij()
+    {
+        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        return Sigmasij;
     }
 };

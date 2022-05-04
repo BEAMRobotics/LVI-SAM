@@ -292,22 +292,6 @@ public:
         // std::cout << "dvl_out: " << dvl_out.header.stamp << " " << vel.x() << " " << vel.y() << " " << vel.z() << " " << gyr.x() << " " << gyr.y() << " " << gyr.z() << std::endl;
         return dvl_out;
     }
-
-    nav_msgs::Odometry groundTruthConverter(const nav_msgs::Odometry& ground_truth_in)
-    {
-        nav_msgs::Odometry ground_truth_out = ground_truth_in;
-
-        Eigen::Vector3d odom_to_map{22.5, 30.0, 0.1}; // hard coded for project
-        // adjust for odom_to_map transform
-        ground_truth_out.pose.pose.position.x -= odom_to_map.x();
-        ground_truth_out.pose.pose.position.y -= odom_to_map.y();
-        ground_truth_out.pose.pose.position.z -= odom_to_map.z();
-        // adjust for dvl to lidar transform, where lidar coincides with baselink
-        ground_truth_out.pose.pose.position.x -= dvlExtTrans[0];
-        ground_truth_out.pose.pose.position.y -= dvlExtTrans[1];
-        //ground_truth_out.pose.pose.position.z -= dvlExtTrans[2];
-        return ground_truth_out;
-    }
 };
 
 template<typename T>

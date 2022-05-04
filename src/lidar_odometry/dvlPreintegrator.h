@@ -118,6 +118,7 @@ public:
         stream << "  deltaRij [ " << delta.q.vec().transpose() << " " << delta.q.w() << " ]'" << std::endl;
         stream << "  deltaPij [ " << delta.p.transpose() << " ]'" <<std::endl;
         stream << "  gyrobias [ " << bg.transpose() << " ]'" <<std::endl;
+        stream << "  velobias [ " << bv.transpose() << " ]'" <<std::endl;
         stream << "  dvlPreintMeasCov " << std::endl;
         stream << " [ " << delta.cov << " ]" << std::endl;
     }

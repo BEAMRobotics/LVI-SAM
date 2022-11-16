@@ -1246,6 +1246,7 @@ public:
             cv::Mat matX2(6, 1, CV_32F, cv::Scalar::all(0));
             matX.copyTo(matX2);
             matX = matP * matX2;
+            // std::cout << "lidar isDegenerate" << std::endl;
         }
 
         transformTobeMapped[0] += matX.at<float>(0, 0);

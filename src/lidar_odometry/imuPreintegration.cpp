@@ -58,12 +58,14 @@ public:
     gtsam::imuBias::ConstantBias prevBias_;
 
     // comparison metrics
-    gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.999976616, -0.000357543814, -0.00682882884, 7.85552373e-05); // hard-coded for wamv sim environment 2
-    gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(0.0105184277, -0.000725783618, 0.0817260611); // hard-coded for wamv sim environment 2
+    gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.99996402603, 0.000449172449582, -0.00846976139334, 8.96205095477e-05); // hard-coded for wamv sim environment 1
+    gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(22.5509060262, 30.0291119075, -0.146766830601); // hard-coded for wamv sim environment 1
+    // gtsam::Rot3 RotationComparisonDvl_ = gtsam::Rot3(0.999976616, -0.000357543814, -0.00682882884, 7.85552373e-05); // hard-coded for wamv sim environment 2
+    // gtsam::Point3 PositionComparisonDvl_ = gtsam::Point3(0.0105184277, -0.000725783618, 0.0817260611); // hard-coded for wamv sim environment 2
 
     gtsam::NavState propStateComparisonImu_;
-    //double t_Comparison_ = 40.504; // hard-coded for wamv sim environment 1
-    double t_Comparison_ = 38.203; // hard-coded for wamv sim environment 2
+    double t_Comparison_ = 40.508; // hard-coded for wamv sim environment 1
+    // double t_Comparison_ = 38.203; // hard-coded for wamv sim environment 2
 
     gtsam::NavState prevStateOdom;
     gtsam::imuBias::ConstantBias prevBiasOdom;
@@ -75,7 +77,7 @@ public:
     // DVL
 
     // TODO(AlexT) implement custom GTSAM class for dvl preint
-    DVLPreintegrator *dvlIntegratorOpt_;
+    std::shared_ptr<DVLPreintegrator> dvlIntegratorOpt_;
     std::deque<nav_msgs::Odometry> dvlQueOpt;
 
     bool initDVLwindow = true;
@@ -125,7 +127,7 @@ public:
         if (useDvlFactor)
         {
           subDvl    = nh.subscribe<nav_msgs::Odometry>(dvlTopic, 2000, &IMUPreintegration::dvlHandler, this, ros::TransportHints().tcpNoDelay());
-          dvlIntegratorOpt_ = new DVLPreintegrator(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
+          dvlIntegratorOpt_ = std::make_shared<DVLPreintegrator>(imuGyrNoise, dvlVelNoise, imuGyrBiasN, dvlVelBiasN);
         }
     }
 
@@ -356,8 +358,8 @@ public:
                 break;
         }
         // Debug
-        // imuIntegratorOpt_->print();
-        // dvlIntegratorOpt_->print();
+        //imuIntegratorOpt_->print();
+        //dvlIntegratorOpt_->print();
 
         // add imu factor to graph
         const gtsam::PreintegratedImuMeasurements& preint_imu = dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(*imuIntegratorOpt_);
@@ -365,24 +367,25 @@ public:
         graphFactors.add(imu_factor);
         // add imu bias between factor
         graphFactors.add(gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>(B(key - 1), B(key), gtsam::imuBias::ConstantBias(),
-                         gtsam::noiseModel::Diagonal::Sigmas(sqrt(imuIntegratorOpt_->deltaTij()) * noiseModelBetweenBias)));
-
-        // explicitly construct required objects for dvl factor
-        gtsam::Pose3 deltaPoseij = dvlIntegratorOpt_->deltaPoseij(RotationComparisonDvl_);
-        gtsam::Vector6 Sigmasij = dvlIntegratorOpt_->Sigmasij();
-
-        // IMU vs DVL comparison
-        t_Comparison_ += imuIntegratorOpt_->deltaTij();
-        PositionComparisonDvl_ = PositionComparisonDvl_ + deltaPoseij.translation();
-        RotationComparisonDvl_ = RotationComparisonDvl_ * gtsam::Rot3(deltaPoseij.rotation());
-        propStateComparisonImu_ = imuIntegratorOpt_->predict(propStateComparisonImu_, prevBias_);
-        // std::cout << t_Comparison_ << propStateComparisonImu_.position() << " " << propStateComparisonImu_.pose().rotation().quaternion()[1] << " " << propStateComparisonImu_.pose().rotation().quaternion()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[3] << " " << propStateComparisonImu_.pose().rotation().quaternion()[0] << std::endl;
-        // std::cout << t_Comparison_ << " " << PositionComparisonDvl_ << " " << RotationComparisonDvl_.quaternion()[1] << " " << RotationComparisonDvl_.quaternion()[2] << " " << RotationComparisonDvl_.quaternion()[3] << " " << RotationComparisonDvl_.quaternion()[0] << std::endl;
+                        gtsam::noiseModel::Diagonal::Sigmas(sqrt(imuIntegratorOpt_->deltaTij()) * noiseModelBetweenBias)));
 
         // add dvl factor to graph
         if (useDvlFactor)
         {
-            graphFactors.add(gtsam::BetweenFactor<gtsam::Pose3>(X(key - 1), X(key), deltaPoseij, 
+            // explicitly construct required objects for dvl factor
+            gtsam::Pose3 deltaPoseij = dvlIntegratorOpt_->deltaPoseij();
+            gtsam::Vector6 Sigmasij = dvlIntegratorOpt_->Sigmasij();
+
+            // IMU vs DVL comparison
+            // gtsam::PreintegratedImuMeasurements imuIntegratorComparison = preint_imu;
+            t_Comparison_ += dvlIntegratorOpt_->delta.t;
+            PositionComparisonDvl_ = PositionComparisonDvl_ + RotationComparisonDvl_ * deltaPoseij.translation();
+            RotationComparisonDvl_ = RotationComparisonDvl_ * deltaPoseij.rotation();
+            // propStateComparisonImu_ = imuIntegratorComparison.predict(propStateComparisonImu_, prevBias_);
+            // std::cout << t_Comparison_ << " " << propStateComparisonImu_.position()[0] << " " << propStateComparisonImu_.position()[1] << " " << propStateComparisonImu_.position()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[1] << " " << propStateComparisonImu_.pose().rotation().quaternion()[2] << " " << propStateComparisonImu_.pose().rotation().quaternion()[3] << " " << propStateComparisonImu_.pose().rotation().quaternion()[0] << std::endl;
+            std::cout << t_Comparison_ << " " << PositionComparisonDvl_.transpose() << " " << RotationComparisonDvl_.quaternion()[1] << " " << RotationComparisonDvl_.quaternion()[2] << " " << RotationComparisonDvl_.quaternion()[3] << " " << RotationComparisonDvl_.quaternion()[0] << std::endl;
+
+            graphFactors.add(gtsam::BetweenFactor<gtsam::Pose3>(X(key - 1), X(key), deltaPoseij,
                              gtsam::noiseModel::Diagonal::Sigmas(Sigmasij)));
         }
         // add pose factor

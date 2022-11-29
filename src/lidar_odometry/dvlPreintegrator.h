@@ -181,17 +181,17 @@ public:
         delta.q = (delta.q * q_full).normalized();
     }
 
-    gtsam::Pose3 deltaPoseij(const gtsam::Rot3& R_previous)
+    gtsam::Pose3 deltaPoseij()
     {
         // rotate deltaPij into world frame
-        gtsam::Point3 deltaPij = R_previous.matrix()*gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z());
-        gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q.w(), delta.q.x(), delta.q.y(), delta.q.z()), deltaPij);
+        gtsam::Pose3 deltaPoseij = gtsam::Pose3(gtsam::Rot3(delta.q.w(), delta.q.x(), delta.q.y(), delta.q.z()), gtsam::Point3(delta.p.x(), delta.p.y(), delta.p.z()));
         return deltaPoseij;
     }
 
     gtsam::Vector6 Sigmasij()
     {
-        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+17, 1e+17, 1e+17, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+18, 1e+18, 1e+18, sqrt(delta.cov.diagonal()[3]), sqrt(delta.cov.diagonal()[4]), sqrt(delta.cov.diagonal()[5])).finished();
+        // gtsam::Vector6 Sigmasij = (gtsam::Vector(6) << 1e+18, 1e+18, 1e+18, 1e-10, 1e-10, 1e-10).finished();
         return Sigmasij;
     }
 };
